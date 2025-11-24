@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Hotel Reservation - Web UI</title>
+    <style>
+        :root{--accent:#2b7be4;--muted:#666;--bg:#f7f9fc}
+        *{box-sizing:border-box}
+        body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:var(--bg);color:#222}
+        header{background:linear-gradient(90deg,var(--accent),#1c5fb8);color:#fff;padding:20px}
+        .container{max-width:1100px;margin:20px auto;padding:18px;background:#fff;border-radius:10px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+        h1{margin:0;font-weight:600}
+        .layout{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+        @media (max-width:880px){.layout{grid-template-columns:1fr}}
+
+        /* forms */
+        .card{padding:12px;border-radius:8px;border:1px solid #eef3fb;background:linear-gradient(180deg,#fff,#fbfdff)}
+        label{display:block;font-size:13px;margin-bottom:6px;color:var(--muted)}
+        input[type=text], input[type=number]{width:100%;padding:10px;border:1px solid #dbe7fb;border-radius:6px;margin-bottom:10px}
+        button{background:var(--accent);color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+        button.secondary{background:#eee;color:#111}
+        .row{display:flex;gap:10px}
+        .row > *{flex:1}
+
+        /* table */
+        table{width:100%;border-collapse:collapse;margin-top:12px}
+        th,td{padding:10px 8px;text-align:left;border-bottom:1px solid #eef3fb;font-size:14px}
+        th{background:#fafbff;color:#444;font-weight:600}
+        .small{font-size:12px;color:var(--muted)}
+
+        /* actions */
+        .actions{display:flex;gap:8px}
+        .muted{color:var(--muted)}
+        .controls{display:flex;flex-direction:column;gap:12px}
+
+        footer{margin-top:18px;text-align:center;color:var(--muted);font-size:13px}
+
+        /* simple notification */
+        #toast{position:fixed;right:18px;bottom:18px;padding:12px 16px;border-radius:8px;background:#111;color:#fff;opacity:0;transform:translateY(20px);transition:all .28s ease;z-index:50}
+        #toast.show{opacity:1;transform:translateY(0)}
+    </style>
+</head>
+<body>
+<header>
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between">
+        <h1>Hotel Reservation System</h1>
+        <div class="small">HOTEL RESERVATION SYSTEM</div>
+    </div>
+</header>
+
+<main class="container">
+    <div class="layout">
+        <section>
+            <div class="card">
+                <h3 style="margin-top:0">New Reservation</h3>
+                <div>
+                    <label>Guest Name</label>
+                    <input id="guestName" type="text" placeholder="e.g. Priya Sharma">
+                    <label>Room Number</label>
+                    <input id="roomNumber" type="number" placeholder="e.g. 101">
+                    <label>Contact Number</label>
+                    <input id="contactNumber" type="text" placeholder="Mobile or phone">
+                    <div style="display:flex;gap:10px;margin-top:8px">
+                        <button id="btnReserve">Reserve</button>
+                        <button id="btnClear" class="secondary" onclick="clearNew()">Clear</button>
+                        <button id="btnRefresh" class="secondary" style="margin-left:auto" onclick="loadList()">Refresh List</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:12px">
+                <h3 style="margin-top:0">Reservations</h3>
+                <div class="small">Click a row to populate the update form on the right.</div>
+                <div style="overflow:auto;max-height:360px;margin-top:8px">
+                    <table id="reservationsTable">
+                        <thead>
+                        <tr><th>ID</th><th>Guest</th><th>Room</th><th>Contact</th><th>Date</th><th>Action</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <aside>
+            <div class="card controls">
+                <div>
+                    <h4 style="margin:0">Get Room Number</h4>
+                    <label>Reservation ID</label>
+                    <input id="lookupId" type="number" placeholder="ID">
+                    <label>Guest Name</label>
+                    <input id="lookupName" type="text" placeholder="Exact guest name">
+                    <div style="margin-top:8px;display:flex;gap:8px"><button onclick="lookupRoom()">Find Room</button></div>
+                </div>
+
+                <div>
+                    <h4 style="margin:0">Update Reservation</h4>
+                    <label>Reservation ID</label>
+                    <input id="updateId" type="number" placeholder="ID (click a row to fill)">
+                    <label>Guest Name</label>
+                    <input id="updateGuest" type="text">
+                    <label>Room Number</label>
+                    <input id="updateRoom" type="number">
+                    <label>Contact</label>
+                    <input id="updateContact" type="text">
+                    <div style="display:flex;gap:8px;margin-top:8px">
+                        <button onclick="doUpdate()">Update</button>
+                        <button class="secondary" onclick="clearUpdate()">Clear</button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="margin:0">Delete Reservation</h4>
+                    <label>Reservation ID</label>
+                    <input id="deleteId" type="number" placeholder="ID">
+                    <div style="margin-top:8px"><button style="background:#d23b3b" onclick="doDelete()">Delete</button></div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <footer>
+        <div>Tip: wire up your Java backend to the endpoints described in the top comments. Adjust the BASE_URL variable in the JS below if needed.</div>
+    </footer>
+</main>
+
+<div id="toast"></div>
+
+<script>
+    // Change BASE_URL if your backend is on another host/port
+    const BASE_URL = 'http://localhost:8081';
+
+    function toast(msg){
+        const t = document.getElementById('toast'); t.textContent = msg; t.className='show';
+        setTimeout(()=> t.className='', 2800);
+    }
+
+    async function loadList(){
+        try{
+            const res = await fetch(BASE_URL + '/api/reservations');
+            if(!res.ok) throw new Error('Failed to fetch');
+            const data = await res.json();
+            const tbody = document.querySelector('#reservationsTable tbody'); tbody.innerHTML='';
+            data.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+            <td>${r.reservation_id}</td>
+            <td>${escapeHtml(r.guest_name)}</td>
+            <td>${r.room_number}</td>
+            <td>${escapeHtml(r.contact_number||'')}</td>
+            <td class="small">${r.reservation_date||''}</td>
+            <td><div class="actions"><button onclick="selectRow(${r.reservation_id}, '${escapeJs(r.guest_name)}', ${r.room_number}, '${escapeJs(r.contact_number||'')}')">Select</button></div></td>
+          `;
+                tbody.appendChild(tr);
+            });
+            toast('Reservations loaded');
+        }catch(err){
+            console.error(err); toast('Could not load reservations (see console)');
+        }
+    }
+
+    function clearNew(){ document.getElementById('guestName').value=''; document.getElementById('roomNumber').value=''; document.getElementById('contactNumber').value=''; }
+    function clearUpdate(){ document.getElementById('updateId').value=''; document.getElementById('updateGuest').value=''; document.getElementById('updateRoom').value=''; document.getElementById('updateContact').value=''; }
+
+    function selectRow(id, guest, room, contact){
+        document.getElementById('updateId').value = id;
+        document.getElementById('updateGuest').value = guest;
+        document.getElementById('updateRoom').value = room;
+        document.getElementById('updateContact').value = contact;
+        toast('Selected reservation ' + id);
+    }
+
+    async function lookupRoom(){
+        const id = document.getElementById('lookupId').value.trim();
+        const guest = document.getElementById('lookupName').value.trim();
+        if(!id || !guest){ toast('Provide both ID and Guest name'); return; }
+        try{
+            const res = await fetch(BASE_URL + `/api/reservations/${id}?guest=${encodeURIComponent(guest)}`);
+            if(res.status===404){ toast('Reservation not found'); return; }
+            if(!res.ok) throw new Error('Server error');
+            const data = await res.json();
+            toast('Room number: ' + data.room_number);
+        }catch(err){ console.error(err); toast('Lookup failed'); }
+    }
+
+    async function doReserve(){
+        const guest = document.getElementById('guestName').value.trim();
+        const room = document.getElementById('roomNumber').value.trim();
+        const contact = document.getElementById('contactNumber').value.trim();
+        if(!guest || !room){ toast('Guest and room required'); return; }
+        try{
+            const res = await fetch(BASE_URL + '/api/reservations', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({guest_name:guest, room_number:parseInt(room), contact_number:contact})});
+            if(!res.ok) throw new Error('Failed');
+            clearNew(); loadList(); toast('Reserved');
+        }catch(err){ console.error(err); toast('Reservation failed'); }
+    }
+
+    async function doUpdate(){
+        const id = document.getElementById('updateId').value.trim();
+        if(!id){ toast('Reservation ID required'); return; }
+        const payload = {};
+        const g = document.getElementById('updateGuest').value.trim(); if(g) payload.guest_name = g;
+        const r = document.getElementById('updateRoom').value.trim(); if(r) payload.room_number = parseInt(r);
+        const c = document.getElementById('updateContact').value.trim(); if(c) payload.contact_number = c;
+        if(Object.keys(payload).length===0){ toast('Provide at least one field to update'); return; }
+        try{
+            const res = await fetch(BASE_URL + `/api/reservations/${id}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+            if(res.status===404){ toast('Reservation not found'); return; }
+            if(!res.ok) throw new Error('Failed');
+            loadList(); toast('Updated');
+        }catch(err){ console.error(err); toast('Update failed'); }
+    }
+
+    async function doDelete(){
+        const id = document.getElementById('deleteId').value.trim(); if(!id){ toast('ID required'); return; }
+        if(!confirm('Delete reservation ' + id + '?')) return;
+        try{
+            const res = await fetch(BASE_URL + `/api/reservations/${id}`, {method:'DELETE'});
+            if(res.status===404){ toast('Reservation not found'); return; }
+            if(!res.ok) throw new Error('Failed');
+            loadList(); toast('Deleted');
+        }catch(err){ console.error(err); toast('Delete failed'); }
+    }
+
+    // helpers to avoid XSS when inserting into table
+    function escapeHtml(s){ if(!s && s!==0) return ''; return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function escapeJs(s){ return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\"/g,'\\\"'); }
+
+    // event bindings
+    document.getElementById('btnReserve').addEventListener('click', doReserve);
+    document.getElementById('btnRefresh').addEventListener('click', loadList);
+
+    // initial load
+    window.addEventListener('load', loadList);
+</script>
+</body>
+</html>
